@@ -1,0 +1,95 @@
+# ============================================================
+#  params.yaml  —  Parámetros del sistema Puzzlebot Tracker
+# ============================================================
+# Ajusta estos valores para tu configuración específica.
+# Todos los parámetros son reconfigurables en caliente con:
+#   ros2 param set /vision_tracker <param> <valor>
+#   ros2 param set /visual_servo_controller <param> <valor>
+# ============================================================
+
+vision_tracker:
+  ros__parameters:
+
+    # ── Modo de detección ──────────────────────────────────
+    # 'aruco'  → solo marcadores ArUco (más robusto y preciso)
+    # 'hsv'    → solo blob de color (sin marcador físico)
+    # 'hybrid' → ArUco primario, HSV como respaldo automático
+    detection_mode: "hybrid"
+
+    # ── Configuración ArUco ────────────────────────────────
+    aruco_dict_id:    0       # 0 = DICT_4X4_50 (recomendado)
+                              # 1 = DICT_4X4_100
+                              # 10 = DICT_5X5_50
+    aruco_target_id:  0       # ID del marcador específico a seguir
+    aruco_marker_size: 0.10   # Tamaño físico del lado del marcador [m]
+                              # ¡Medir con regla! La distancia estimada depende de esto.
+
+    # ── Configuración HSV (color del objeto) ───────────────
+    # Para calibrar: usa el script scripts/hsv_calibrator.py
+    # Verde brillante (default):
+    hsv_lower: [35, 60, 60]
+    hsv_upper: [85, 255, 255]
+    # Rojo (usar dos rangos en código si necesario):
+    # hsv_lower: [0, 100, 100]
+    # hsv_upper: [10, 255, 255]
+    # Azul:
+    # hsv_lower: [100, 80, 80]
+    # hsv_upper: [130, 255, 255]
+    hsv_min_area: 800         # Área mínima de contorno [px²] (filtro de ruido)
+
+    # ── Cámara ─────────────────────────────────────────────
+    image_width:  640
+    image_height: 480
+    # Longitud focal estimada para cámara 640x480 con FOV ~60°:
+    #   fx = (img_width / 2) / tan(FOV_horizontal / 2)
+    #   fx ≈ 554 px para 60° horizontal
+    # Para calibración precisa usa: ros2 run camera_calibration cameracalibrator
+    camera_fx: 554.0
+    camera_fy: 554.0
+
+    # ── Filtro EMA (suavizado) ─────────────────────────────
+    # alpha = 1.0  → sin filtro (máxima respuesta, máximo ruido)
+    # alpha = 0.2  → muy suave (lento)
+    # alpha = 0.35 → equilibrio recomendado para 30fps
+    ema_alpha: 0.35
+
+    lost_frames_max: 12       # Frames consecutivos sin detección para declarar pérdida
+    publish_debug: true       # Publicar /detection/debug para visualización en RViz/rqt
+
+
+visual_servo_controller:
+  ros__parameters:
+
+    # ── Objetivo de seguimiento ────────────────────────────
+    desired_distance: 0.50    # Distancia deseada al objetivo [m]
+
+    # ── Límites de velocidad ───────────────────────────────
+    v_max:     0.25           # Velocidad lineal máxima [m/s]
+    omega_max: 1.20           # Velocidad angular máxima [rad/s]
+
+    # ── PID Angular: error horizontal → velocidad angular ──
+    # Tuning inicial: empieza con Kp=0.5, Ki=0, Kd=0
+    # Si oscila: reduce Kp, añade Kd
+    # Si hay error estacionario: añade Ki pequeño
+    ang_kp: 0.65
+    ang_ki: 0.008
+    ang_kd: 0.10
+
+    # ── PID Lineal: error de distancia → velocidad lineal ──
+    lin_kp: 0.45
+    lin_ki: 0.005
+    lin_kd: 0.06
+
+    # ── Dead-zones (evitan micro-vibraciones en equilibrio) ─
+    deadzone_angular: 0.04    # Error normalizado [-1,1] → ±4% del frame
+    deadzone_linear:  0.04    # Metros → ±4 cm de tolerancia
+
+    # ── Comportamiento ante pérdida ────────────────────────
+    lost_timeout:  1.5        # Segundos sin detección antes de buscar [s]
+    search_omega:  0.35       # Velocidad angular de búsqueda [rad/s]
+
+    # ── Gain scheduling ────────────────────────────────────
+    # Reduce velocidad lineal cuando el objetivo no está centrado.
+    # v_cmd = v_pid * max(0, 1 - centering_gain * |ex|)
+    # 1.0 = atenuación suave, 2.0 = muy agresiva
+    centering_gain: 1.2

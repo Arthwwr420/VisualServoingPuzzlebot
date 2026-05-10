@@ -1,0 +1,51 @@
+# ============================================================
+#  requirements.txt  —  Puzzlebot Tracker
+#  Jetson Nano + ROS2 Humble
+# ============================================================
+#
+#  IMPORTANTE: NO instalar opencv con pip en Jetson Nano.
+#  OpenCV ya viene precompilado con soporte CUDA + GStreamer.
+#  Instalar solo los paquetes marcados con [PIP OK].
+#
+#  Instalación:
+#    pip3 install -r requirements.txt
+#
+# ============================================================
+
+# ── Python core ─────────────────────────────────────────── [PIP OK]
+numpy>=1.21.0
+
+# ── OpenCV ──────────────────────────────────────────────── [NO PIP]
+# opencv-contrib-python   ← NO instalar en Jetson Nano
+# Usar el preinstalado:   python3 -c "import cv2; print(cv2.__version__)"
+# Versión mínima requerida: 4.5.0 (para cv2.aruco.ArucoDetector)
+
+# ── ROS2 (instalar via apt, no pip) ─────────────────────── [NO PIP]
+# ros-humble-rclpy
+# ros-humble-sensor-msgs
+# ros-humble-geometry-msgs
+# ros-humble-std-msgs
+# ros-humble-cv-bridge
+# ros-humble-launch
+# ros-humble-launch-ros
+#
+# Instalar con:
+#   sudo apt install ros-humble-cv-bridge
+#   sudo apt install ros-humble-rqt-image-view
+#   sudo apt install ros-humble-rqt-plot
+
+# ── Opcional: visualización y debug ─────────────────────── [PIP OK]
+# matplotlib>=3.5.0       # para graficar métricas offline
+
+# ── Opcional: calibración de cámara ─────────────────────── [PIP OK]
+# scipy>=1.7.0            # si usas calibración avanzada
+
+# ============================================================
+#  Verificación rápida de dependencias:
+#
+#  python3 -c "import cv2; print('OpenCV:', cv2.__version__)"
+#  python3 -c "import numpy; print('NumPy:', numpy.__version__)"
+#  python3 -c "import rclpy; print('rclpy OK')"
+#  python3 -c "from cv_bridge import CvBridge; print('cv_bridge OK')"
+#  python3 -c "import cv2; d=cv2.aruco.getPredefinedDictionary(0); print('ArUco OK')"
+# ============================================================
