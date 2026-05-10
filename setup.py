@@ -28,6 +28,7 @@ setup(
         'console_scripts': [
             'vision_tracker    = puzzlebot_tracker.vision_tracker:main',
             'pid_controller    = puzzlebot_tracker.pid_controller:main',
+            'lqr_controller    = puzzlebot_tracker.lqr_controller:main',
         ],
     },
 )

@@ -1,5 +1,6 @@
 # ============================================================
-#  params.yaml  —  Parámetros del sistema Puzzlebot Tracker
+#  params.yaml  —  Puzzlebot Tracker  (LQR Edition)
+#  Control Óptimo LQR + Visión Clásica (ArUco / HSV)
 # ============================================================
 # Ajusta estos valores para tu configuración específica.
 # Todos los parámetros son reconfigurables en caliente con:
