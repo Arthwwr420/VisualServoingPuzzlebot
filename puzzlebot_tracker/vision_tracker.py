@@ -91,15 +91,20 @@ class VisionTracker(Node):
         self.pub_debug    = self.get_parameter('publish_debug').value
 
         # ── ArUco Detector (OpenCV 4.7+) ──
-        dict_id = self.get_parameter('aruco_dict_id').value
-        self.aruco_dict   = cv2.aruco.getPredefinedDictionary(dict_id)
-        params            = cv2.aruco.DetectorParameters()
+        if self.mode in ('aruco', 'hybrid'):
+            dict_id = self.get_parameter('aruco_dict_id').value
+            self.aruco_dict   = cv2.aruco.getPredefinedDictionary(dict_id)
+            params            = cv2.aruco.DetectorParameters()
         # Mejorar detección en condiciones variables de iluminación
-        params.adaptiveThreshWinSizeMin  = 3
-        params.adaptiveThreshWinSizeMax  = 23
-        params.adaptiveThreshWinSizeStep = 10
-        params.minMarkerPerimeterRate    = 0.03
-        self.aruco_detector = cv2.aruco.ArucoDetector(self.aruco_dict, params)
+            params.adaptiveThreshWinSizeMin  = 3
+            params.adaptiveThreshWinSizeMax  = 23
+            params.adaptiveThreshWinSizeStep = 10
+            params.minMarkerPerimeterRate    = 0.03
+            self.aruco_detector = cv2.aruco.ArucoDetector(self.aruco_dict, params)
+
+        else:
+            self.aruco_detector = None
+            self.get_logger().info(f'Modo {self.mode}: ArUco desactivado')
 
         # ── HSV bounds ──
         lo = self.get_parameter('hsv_lower').value

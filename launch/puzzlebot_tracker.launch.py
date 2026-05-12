@@ -12,7 +12,7 @@ def generate_launch_description():
         FindPackageShare('puzzlebot_tracker'), 'config', 'params.yaml'])
 
     return LaunchDescription([
-        DeclareLaunchArgument('mode',     default_value='hybrid'),
+        DeclareLaunchArgument('mode',     default_value='hsv'),
         DeclareLaunchArgument('debug',    default_value='true'),
         DeclareLaunchArgument('aruco_id', default_value='0'),
         LogInfo(msg='=== Puzzlebot LQR Visual Tracker iniciando ==='),

@@ -15,7 +15,7 @@ vision_tracker:
     # 'aruco'  → solo marcadores ArUco (más robusto y preciso)
     # 'hsv'    → solo blob de color (sin marcador físico)
     # 'hybrid' → ArUco primario, HSV como respaldo automático
-    detection_mode: "hybrid"
+    detection_mode: "hsv"
 
     # ── Configuración ArUco ────────────────────────────────
     aruco_dict_id:    0       # 0 = DICT_4X4_50 (recomendado)

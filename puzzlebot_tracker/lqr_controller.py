@@ -59,10 +59,15 @@ estabiliza el sistema cuando los autovalores de (F − G·K) están dentro
 del círculo unitario (verificado en __init__).
 
 ─────────────────────────────────────────────────────────────────────────
-Subscripciones:  /detection/error  (geometry_msgs/Point)
-Publicaciones:   /cmd_vel          (geometry_msgs/Twist)
-                 /controller/state (std_msgs/String)
-                 /controller/gains (std_msgs/String)  ← debug
+Subscripciones:  /detection/error   (geometry_msgs/Point)
+Publicaciones:   /VelocitySetL      (std_msgs/Float32)   ← rueda izquierda [rad/s]
+                 /VelocitySetR      (std_msgs/Float32)   ← rueda derecha   [rad/s]
+                 /controller/state  (std_msgs/String)
+                 /controller/gains  (std_msgs/String)    ← debug
+
+Parámetros físicos del Puzzlebot:
+  WHEEL_RADIUS = 0.05 m
+  WHEEL_BASE   = 0.19 m
 
 Autor:   Puzzlebot Team
 ROS2:    Humble / Iron / Jazzy
@@ -75,8 +80,8 @@ from scipy.linalg import solve_discrete_are
 
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Twist, Point
-from std_msgs.msg import String
+from geometry_msgs.msg import Point
+from std_msgs.msg import String, Float32
 from enum import Enum, auto
 
 
@@ -99,7 +104,12 @@ class LQRVisualController(Node):
       • Anti-windup: saturación de los estados integrales
       • Gain scheduling físico: reduce v cuando no está centrado
       • Máquina de estados: SEARCHING / TRACKING / LOST
+      • Publica velocidades de rueda en rad/s a /VelocitySetL y /VelocitySetR
     """
+
+    # ── Parámetros físicos del Puzzlebot ─────────────────────────────────────
+    WHEEL_RADIUS = 0.05   # m  (radio de rueda)
+    WHEEL_BASE   = 0.19   # m  (distancia entre centros de ruedas)
 
     def __init__(self):
         super().__init__('lqr_visual_controller')
@@ -129,15 +139,15 @@ class LQRVisualController(Node):
         self.declare_parameter('r_v',     0.20)  # costo de velocidad lineal
 
         # ── Límites de estados integrales (anti-windup) ──────────────────────
-        self.declare_parameter('int_ex_max', 2.0)   # [s]  integra ex
-        self.declare_parameter('int_ed_max', 1.5)   # [m·s] integra ed
+        self.declare_parameter('int_ex_max', 2.0)   # [s]    integra ex
+        self.declare_parameter('int_ed_max', 1.5)   # [m·s]  integra ed
 
         # ── Comportamiento de pérdida ────────────────────────────────────────
-        self.declare_parameter('lost_timeout',  1.5)
-        self.declare_parameter('search_omega',  0.35)
+        self.declare_parameter('lost_timeout',   1.5)
+        self.declare_parameter('search_omega',   0.35)
         self.declare_parameter('centering_gain', 1.2)
-        self.declare_parameter('deadzone_ex',   0.04)
-        self.declare_parameter('deadzone_ed',   0.04)
+        self.declare_parameter('deadzone_ex',    0.04)
+        self.declare_parameter('deadzone_ed',    0.04)
 
         # ── Leer parámetros ──────────────────────────────────────────────────
         self.d_goal   = self.get_parameter('desired_distance').value
@@ -160,17 +170,19 @@ class LQRVisualController(Node):
 
         # ── Estado del controlador ───────────────────────────────────────────
         # x = [e_x, e_d, ∫e_x, ∫e_d]
-        self._x = np.zeros(4)
-        self._last_time       = self.get_clock().now()
-        self._last_detect     = None
-        self.state            = State.SEARCHING
+        self._x           = np.zeros(4)
+        self._last_time   = self.get_clock().now()
+        self._last_detect = None
+        self.state        = State.SEARCHING
 
         # ── ROS2 I/O ─────────────────────────────────────────────────────────
         self.sub = self.create_subscription(
             Point, '/detection/error', self._error_cb, 10)
-        self.pub_cmd   = self.create_publisher(Twist,  '/cmd_vel',          10)
-        self.pub_state = self.create_publisher(String, '/controller/state',  10)
-        self.pub_gains = self.create_publisher(String, '/controller/gains',  10)
+
+        self.pub_left  = self.create_publisher(Float32, '/VelocitySetL',      10)
+        self.pub_right = self.create_publisher(Float32, '/VelocitySetR',      10)
+        self.pub_state = self.create_publisher(String,  '/controller/state',  10)
+        self.pub_gains = self.create_publisher(String,  '/controller/gains',  10)
 
         # Watchdog a 10 Hz
         self.create_timer(0.10, self._watchdog_cb)
@@ -180,7 +192,8 @@ class LQRVisualController(Node):
 
         self.get_logger().info(
             f'LQRVisualController listo | dt={self.dt:.4f}s | '
-            f'd_goal={self.d_goal}m\n'
+            f'd_goal={self.d_goal}m | '
+            f'r={self.WHEEL_RADIUS}m | L={self.WHEEL_BASE}m\n'
             f'  K =\n{np.round(self.K, 4)}')
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -193,9 +206,9 @@ class LQRVisualController(Node):
 
         Retorna: (F, G, K)
         """
-        dt   = self.dt
-        k_w  = self.k_w
-        k_v  = self.k_v
+        dt  = self.dt
+        k_w = self.k_w
+        k_v = self.k_v
 
         # ── Modelo continuo ──────────────────────────────────────────────────
         A = np.array([
@@ -294,14 +307,12 @@ class LQRVisualController(Node):
         self._x[3] = float(np.clip(
             self._x[3] + e_d * dt, -self.int_ed_max, self.int_ed_max))
 
-        # ── Ley de control óptima: u* = −K·x ─────────────────────────────────
-        u = -self.K @ self._x          # [ω*, v*]
+        # ── Ley de control óptima: u* = −K·x ────────────────────────────────
+        u          = -self.K @ self._x   # [ω*, v*]
         omega_star = float(u[0])
         v_star     = float(u[1])
 
         # ── Gain scheduling: reducir v cuando el objetivo no está centrado ───
-        # Esto NO altera la optimalidad del LQR; es una restricción física
-        # que evita que el robot avance mientras aún debe rotar.
         centering = max(0.0, 1.0 - self.c_gain * abs(e_x))
         v_cmd     = v_star * centering
 
@@ -347,18 +358,39 @@ class LQRVisualController(Node):
         self._x[3] = 0.0
 
     def _send_cmd(self, v: float, omega: float):
-        cmd = Twist()
-        cmd.linear.x  = v
-        cmd.angular.z = omega
-        self.pub_cmd.publish(cmd)
+        """
+        Convierte velocidad unicycle (v, ω) a velocidades de rueda en rad/s
+        y publica en /VelocitySetL y /VelocitySetR.
+
+        Cinemática diferencial:
+          v_L = (v - ω · L/2) / r
+          v_R = (v + ω · L/2) / r
+        """
+        v_left  = (v - omega * self.WHEEL_BASE / 2.0) / self.WHEEL_RADIUS
+        v_right = (v + omega * self.WHEEL_BASE / 2.0) / self.WHEEL_RADIUS
+
+        msg_l      = Float32()
+        msg_l.data = float(v_left)
+        msg_r      = Float32()
+        msg_r.data = float(v_right)
+
+        self.pub_left.publish(msg_l)
+        self.pub_right.publish(msg_r)
+
+        self.get_logger().debug(
+            f'WheelCmd → L={v_left:+.3f}  R={v_right:+.3f} rad/s')
 
     def _stop(self):
-        self.pub_cmd.publish(Twist())
+        """Publicar cero en ambas ruedas."""
+        zero      = Float32()
+        zero.data = 0.0
+        self.pub_left.publish(zero)
+        self.pub_right.publish(zero)
 
     def _transition(self, new_state: State):
         self.get_logger().info(f'Estado: {self.state.name} → {new_state.name}')
         self.state = new_state
-        msg = String()
+        msg      = String()
         msg.data = new_state.name
         self.pub_state.publish(msg)
 
@@ -371,7 +403,7 @@ class LQRVisualController(Node):
             f'  v = {-self.K[1,0]:.4f}·e_x + {-self.K[1,1]:.4f}·e_d + '
             f'{-self.K[1,2]:.4f}·∫e_x + {-self.K[1,3]:.4f}·∫e_d'
         )
-        msg = String()
+        msg      = String()
         msg.data = info
         self.pub_gains.publish(msg)
 
