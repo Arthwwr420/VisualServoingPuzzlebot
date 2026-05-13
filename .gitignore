@@ -1,0 +1,70 @@
+# ROS2 / Colcon
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# VSCode
+.vscode/
+
+# JetBrains / CLion / PyCharm
+.idea/
+
+# Linux
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# ROS bags / recordings
+*.db3
+*.mcap
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# Cache
+.cache/
+
+# OpenCV / camera outputs
+*.avi
+*.mp4
+*.mov
+*.png
+*.jpg
+
+# Generated launch artifacts
+*.launch.pyc
+
+# Nested ROS2 folders
+**/build/
+**/install/
+**/log/
+
+# Python cache
+**/__pycache__/
+*.py[cod]
+
+# ROS generated
+*.egg-info/

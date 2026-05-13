@@ -1,96 +1,87 @@
-# ============================================================
-#  params.yaml  —  Puzzlebot Tracker  (LQR Edition)
-#  Control Óptimo LQR + Visión Clásica (ArUco / HSV)
-# ============================================================
-# Ajusta estos valores para tu configuración específica.
-# Todos los parámetros son reconfigurables en caliente con:
-#   ros2 param set /vision_tracker <param> <valor>
-#   ros2 param set /visual_servo_controller <param> <valor>
-# ============================================================
+# params.yaml — Puzzlebot Tracker (LQR Edition)
+# Control Óptimo LQR + Visión Clásica (ArUco / HSV)
+#
+# Todos los parámetros son reconfigurables en caliente:
+#   ros2 param set /vision_cam_tracker <param> <valor>
+#   ros2 param set /lqr_visual_controller <param> <valor>
 
 vision_tracker:
   ros__parameters:
 
-    # ── Modo de detección ──────────────────────────────────
+    # Modo de detección del objetivo
     # 'aruco'  → solo marcadores ArUco (más robusto y preciso)
-    # 'hsv'    → solo blob de color (sin marcador físico)
+    # 'hsv'    → solo blob de color (no requiere marcador físico)
     # 'hybrid' → ArUco primario, HSV como respaldo automático
     detection_mode: "hsv"
 
-    # ── Configuración ArUco ────────────────────────────────
-    aruco_dict_id:    0       # 0 = DICT_4X4_50 (recomendado)
-                              # 1 = DICT_4X4_100
-                              # 10 = DICT_5X5_50
-    aruco_target_id:  0       # ID del marcador específico a seguir
-    aruco_marker_size: 0.10   # Tamaño físico del lado del marcador [m]
-                              # ¡Medir con regla! La distancia estimada depende de esto.
+    # Configuración ArUco
+    aruco_dict_id:     0      # 0=DICT_4X4_50 | 1=DICT_4X4_100 | 10=DICT_5X5_50
+    aruco_target_id:   0      # ID del marcador específico a seguir
+    aruco_marker_size: 0.10   # Tamaño real del lado del marcador [m] — medir con regla
 
-    # ── Configuración HSV (color del objeto) ───────────────
-    # Para calibrar: usa el script scripts/hsv_calibrator.py
-    # Verde brillante (default):
+    # Rangos de color HSV para segmentación (verde brillante por defecto)
+    # Para calibrar: ejecutar un script de calibración HSV con sliders
+    # Verde:  hsv_lower: [35, 60, 60]    hsv_upper: [85, 255, 255]
+    # Rojo:   hsv_lower: [0, 100, 100]   hsv_upper: [10, 255, 255]
+    # Azul:   hsv_lower: [100, 80, 80]   hsv_upper: [130, 255, 255]
     hsv_lower: [35, 60, 60]
     hsv_upper: [85, 255, 255]
-    # Rojo (usar dos rangos en código si necesario):
-    # hsv_lower: [0, 100, 100]
-    # hsv_upper: [10, 255, 255]
-    # Azul:
-    # hsv_lower: [100, 80, 80]
-    # hsv_upper: [130, 255, 255]
-    hsv_min_area: 800         # Área mínima de contorno [px²] (filtro de ruido)
+    hsv_min_area: 800          # Área mínima de contorno [px²] — filtra ruido pequeño
 
-    # ── Cámara ─────────────────────────────────────────────
+    # Parámetros de cámara
     image_width:  640
     image_height: 480
-    # Longitud focal estimada para cámara 640x480 con FOV ~60°:
-    #   fx = (img_width / 2) / tan(FOV_horizontal / 2)
-    #   fx ≈ 554 px para 60° horizontal
-    # Para calibración precisa usa: ros2 run camera_calibration cameracalibrator
+    # Focal length para cámara 640x480 con FOV ~60°:
+    #   fx = (img_width / 2) / tan(FOV_h / 2) ≈ 554 px
+    # Para valores precisos usar: ros2 run camera_calibration cameracalibrator
     camera_fx: 554.0
     camera_fy: 554.0
 
-    # ── Filtro EMA (suavizado) ─────────────────────────────
-    # alpha = 1.0  → sin filtro (máxima respuesta, máximo ruido)
-    # alpha = 0.2  → muy suave (lento)
-    # alpha = 0.35 → equilibrio recomendado para 30fps
+    # Filtro de media móvil exponencial (EMA)
+    # alpha=1.0 → sin filtro (máxima respuesta)
+    # alpha=0.2 → muy suave (respuesta lenta)
+    # alpha=0.35 → equilibrio recomendado a 30fps
     ema_alpha: 0.35
 
-    lost_frames_max: 12       # Frames consecutivos sin detección para declarar pérdida
-    publish_debug: true       # Publicar /detection/debug para visualización en RViz/rqt
+    lost_frames_max: 12        # Frames consecutivos sin detección para declarar pérdida
+    publish_debug:   true      # Publicar /detection/debug para RViz o rqt_image_view
 
 
-visual_servo_controller:
+lqr_visual_controller:
   ros__parameters:
 
-    # ── Objetivo de seguimiento ────────────────────────────
-    desired_distance: 0.50    # Distancia deseada al objetivo [m]
+    # Distancia objetivo al objeto [m]
+    desired_distance: 0.50
 
-    # ── Límites de velocidad ───────────────────────────────
-    v_max:     0.25           # Velocidad lineal máxima [m/s]
-    omega_max: 1.20           # Velocidad angular máxima [rad/s]
+    # Límites de velocidad
+    v_max:     0.12            # Velocidad lineal máxima [m/s]  (reducido para pruebas)
+    omega_max: 1.20            # Velocidad angular máxima [rad/s]
 
-    # ── PID Angular: error horizontal → velocidad angular ──
-    # Tuning inicial: empieza con Kp=0.5, Ki=0, Kd=0
-    # Si oscila: reduce Kp, añade Kd
-    # Si hay error estacionario: añade Ki pequeño
-    ang_kp: 0.65
-    ang_ki: 0.008
-    ang_kd: 0.10
+    # Paso de tiempo del modelo discreto [s]
+    sample_time: 0.03333       # ~30 Hz
 
-    # ── PID Lineal: error de distancia → velocidad lineal ──
-    lin_kp: 0.45
-    lin_ki: 0.005
-    lin_kd: 0.06
+    # Ganancias del modelo de primer orden
+    model_k_w: 1.0             # Sensibilidad angular: ė_x = -k_w · ω
+    model_k_v: 1.0             # Sensibilidad lineal:  ė_d = -k_v · v
 
-    # ── Dead-zones (evitan micro-vibraciones en equilibrio) ─
-    deadzone_angular: 0.04    # Error normalizado [-1,1] → ±4% del frame
-    deadzone_linear:  0.04    # Metros → ±4 cm de tolerancia
+    # Matrices de peso LQR — Q penaliza el error de estado, R el esfuerzo de control
+    # Mayor Q → corrección más agresiva | Mayor R → movimientos más conservadores
+    q_ex:   12.0               # Peso del error horizontal e_x
+    q_ed:    2.0               # Peso del error de distancia e_d
+    q_iex:   0.8               # Peso de la integral de e_x
+    q_ied:   0.4               # Peso de la integral de e_d
+    r_omega: 0.15              # Penalización del esfuerzo angular ω
+    r_v:     0.80              # Penalización del esfuerzo lineal v
 
-    # ── Comportamiento ante pérdida ────────────────────────
-    lost_timeout:  1.5        # Segundos sin detección antes de buscar [s]
-    search_omega:  0.35       # Velocidad angular de búsqueda [rad/s]
+    # Límites anti-windup de los integradores
+    int_ex_max: 2.0
+    int_ed_max: 1.5
 
-    # ── Gain scheduling ────────────────────────────────────
-    # Reduce velocidad lineal cuando el objetivo no está centrado.
-    # v_cmd = v_pid * max(0, 1 - centering_gain * |ex|)
-    # 1.0 = atenuación suave, 2.0 = muy agresiva
-    centering_gain: 1.2
+    # Deadzones (evitan micro-oscilaciones en equilibrio)
+    deadzone_ex: 0.04          # Error horizontal mínimo activo [normalizado]
+    deadzone_ed: 0.04          # Error de distancia mínimo activo [m]
+
+    # Comportamiento ante pérdida del objetivo
+    lost_timeout:   1.5        # Tiempo sin detección para iniciar búsqueda [s]
+    search_omega:   0.35       # Velocidad de giro en modo búsqueda [rad/s]
+    centering_gain: 1.2        # Factor de reducción de v cuando el objetivo no está centrado
