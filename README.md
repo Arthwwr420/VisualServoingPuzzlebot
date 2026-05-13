@@ -1,3 +1,14 @@
+
+## Team Members
+
+- Arturo Balboa
+- Oscar de la Rosa
+- Ángel Hernández
+- Emiliano Niño
+- Rigoberto Soto
+
+---
+
 # Puzzlebot Tracker
 
 Autonomous visual tracking system for the differential-drive **Puzzlebot** robot (Jetson Nano + ROS2). The project implements a complete closed-loop perception and control pipeline that allows the robot to detect and follow a target in real time using computer vision techniques.
